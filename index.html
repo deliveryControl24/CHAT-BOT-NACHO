@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pedir por WhatsApp</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #e5ddd5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
+      width: 95%;
+      max-width: 450px;
+      height: 88vh;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-header {
+      background-color: #075e54;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-weight: bold;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      word-wrap: break-word;
+      line-height: 1.4;
+    }
+
+    .bot {
+      background-color: #e0e0e0;
+      align-self: flex-start;
+      border-bottom-left-radius: 0;
+    }
+
+    .user {
+      background-color: #dcf8c6;
+      align-self: flex-end;
+      border-bottom-right-radius: 0;
+    }
+
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+    }
+
+    .option-btn {
+      background-color: #075e54;
+      color: white;
+      border: none;
+      border-radius: 15px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .option-btn:hover {
+      background-color: #054a42;
+    }
+
+    .whatsapp-btn, .reset-btn, .confirm-btn {
+      width: 90%;
+      padding: 12px;
+      border: none;
+      border-radius: 20px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 8px auto;
+      display: block;
+    }
+
+    .whatsapp-btn { background-color: #25D366; color: white; }
+    .reset-btn { background-color: #ff6b6b; color: white; }
+    .confirm-btn { background-color: #3498db; color: white; }
+
+    .whatsapp-btn:hover { background-color: #128C7E; }
+    .reset-btn:hover { background-color: #ff5252; }
+    .confirm-btn:hover { background-color: #2980b9; }
+  </style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="chat-header">Asistente de Pedidos 🍽️</div>
+  <div class="chat-messages" id="chat-messages"></div>
+</div>
+
+<script>
+  // Menú con tiempos ajustados: 35-45 min para platos principales
+  const menu = {
+    asados: [
+      { nombre: "Costilla de cerdo", precio: 300, tiempo: 40 },
+      { nombre: "Pollo asado", precio: 220, tiempo: 35 },
+      { nombre: "Cerdo asado", precio: 220, tiempo: 35 },
+      { nombre: "Corazón asado", precio: 220, tiempo: 40 },
+      { nombre: "Gonces asados", precio: 450, tiempo: 45 },
+      { nombre: "Lomo de costilla (asado)", precio: 470, tiempo: 45 }
+    ],
+    mariscos: [
+      { nombre: "Camarones a la plancha", precio: 370, tiempo: 35 },
+      { nombre: "Camarones empanizados", precio: 370, tiempo: 40 },
+      { nombre: "Camarones al ajillo", precio: 370, tiempo: 35 },
+      { nombre: "Corvina a la plancha", precio: 370, tiempo: 35 }
+    ],
+    pollo: [
+      { nombre: "Pollo a la plancha", precio: 350, tiempo: 35 },
+      { nombre: "Pollo al vino", precio: 350, tiempo: 40 },
+      { nombre: "Pollo jalapeño", precio: 350, tiempo: 40 },
+      { nombre: "Pollo a la plancha (T/Boca)", precio: 400, tiempo: 45 }
+    ],
+    extras: [
+      { nombre: "Arroz o gallo pinto", precio: 50, tiempo: 5 },
+      { nombre: "Papas", precio: 200, tiempo: 10 },
+      { nombre: "Ensalada", precio: 40, tiempo: 3 },
+      { nombre: "Tostones", precio: 50, tiempo: 8 },
+      { nombre: "Jalapeño", precio: 40, tiempo: 2 },
+      { nombre: "Queso", precio: 50, tiempo: 2 }
+    ],
+    bebidas: [
+      { nombre: "Limonada", precio: 40, tiempo: 2 },
+      { nombre: "Gaseosa", precio: 30, tiempo: 2 },
+      { nombre: "Té de limón", precio: 40, tiempo: 3 },
+      { nombre: "Jugo de naranja", precio: 40, tiempo: 3 },
+      { nombre: "Agua embotellada", precio: 40, tiempo: 1 }
+    ],
+    cervezas: [
+      { nombre: "Toña", precio: 40, tiempo: 1 },
+      { nombre: "Toña Light", precio: 45, tiempo: 1 },
+      { nombre: "Victoria Clásica", precio: 50, tiempo: 1 },
+      { nombre: "Victoria Frost", precio: 55, tiempo: 1 },
+      { nombre: "Sol", precio: 45, tiempo: 1 },
+      { nombre: "Heineken", precio: 60, tiempo: 1 },
+      { nombre: "Bamboo", precio: 55, tiempo: 1 },
+      { nombre: "Adán y Eva", precio: 65, tiempo: 1 },
+      { nombre: "Bliss", precio: 70, tiempo: 1 },
+      { nombre: "Hard Seltzer Spark", precio: 75, tiempo: 1 },
+      { nombre: "Smirnoff", precio: 80, tiempo: 2 },
+      { nombre: "Ron nacional Flor de Caña (1/2 botella)", precio: 180, tiempo: 2 },
+      { nombre: "Ron nacional Flor de Caña (1/4 botella)", precio: 100, tiempo: 2 },
+      { nombre: "Tequila José Cuervo Especial", precio: 90, tiempo: 2 },
+      { nombre: "Whisky Johnnie Walker Red", precio: 100, tiempo: 2 },
+      { nombre: "Whisky Johnnie Walker Black", precio: 120, tiempo: 2 }
+    ]
+  };
+
+  let estado = 'inicio'; // inicio, nombre, tipo, direccion, menu, confirmacion
+  let pedido = [];
+  let nombreCliente = '';
+  let tipoPedido = ''; // 'para llevar' o 'delivery'
+  let direccion = '';
+
+  function addMessage(text, sender = 'bot') {
+    const chat = document.getElementById('chat-messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add('message', sender);
+    msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+    chat.appendChild(msgDiv);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function addOptions(options, callback) {
+    const chat = document.getElementById('chat-messages');
+    const optsDiv = document.createElement('div');
+    optsDiv.classList.add('options');
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.classList.add('option-btn');
+      btn.textContent = opt;
+      btn.onclick = () => {
+        callback(opt);
+        optsDiv.remove();
+      };
+      optsDiv.appendChild(btn);
+    });
+    chat.appendChild(optsDiv);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function addResetButton() {
+    const chat = document.getElementById('chat-messages');
+    const btn = document.createElement('button');
+    btn.classList.add('reset-btn');
+    btn.textContent = "🔄 Reiniciar pedido";
+    btn.onclick = reiniciarPedido;
+    chat.appendChild(btn);
+  }
+
+  function reiniciarPedido() {
+    estado = 'inicio';
+    pedido = [];
+    nombreCliente = '';
+    tipoPedido = '';
+    direccion = '';
+    document.getElementById('chat-messages').innerHTML = '';
+    iniciarChat();
+  }
+
+  function iniciarChat() {
+    addMessage("¡Hola! 👋 Bienvenido a nuestro asistente de pedidos.");
+    addMessage("¿Cómo te llamas?");
+    estado = 'nombre';
+    addResetButton();
+  }
+
+  // Manejo de eventos
+  document.getElementById('chat-messages').addEventListener('click', (e) => {
+    if (e.target.tagName === 'BUTTON' && e.target.classList.contains('confirm-btn')) {
+      enviarPedido();
+    }
+  });
+
+  // Escuchar entradas (aunque usamos botones, podríamos extender a input si se desea)
+  // Por ahora, todo por botones para simplicidad móvil.
+
+  function handleInput(input) {
+    if (estado === 'nombre') {
+      nombreCliente = input.trim();
+      if (!nombreCliente) {
+        addMessage("Por favor, dime tu nombre.");
+        return;
+      }
+      addMessage(`¡Hola, ${nombreCliente}! 👋`, 'user');
+      addMessage("¿Tu pedido es para llevar o delivery?");
+      addOptions(["Para llevar", "Delivery"], (tipo) => {
+        tipoPedido = tipo.toLowerCase();
+        addMessage(tipo, 'user');
+        if (tipoPedido === 'delivery') {
+          addMessage("Por favor, indícanos tu dirección de entrega:");
+          estado = 'direccion';
+        } else {
+          estado = 'menu';
+          mostrarMenu();
+        }
+      });
+    } else if (estado === 'direccion') {
+      direccion = input.trim();
+      if (!direccion) {
+        addMessage("Por favor, escribe tu dirección.");
+        return;
+      }
+      addMessage(direccion, 'user');
+      estado = 'menu';
+      mostrarMenu();
+    }
+  }
+
+  function mostrarMenu() {
+    addMessage("¿Qué te gustaría pedir?");
+    addOptions(
+      ["Asados", "Mariscos", "Pollo", "Extras", "Bebidas", "Cervezas/Licores", "Ver pedido", "Enviar pedido"],
+      manejarCategoria
+    );
+  }
+
+  function manejarCategoria(categoria) {
+    addMessage(categoria, 'user');
+
+    if (categoria === "Ver pedido") {
+      mostrarResumen();
+      mostrarMenu();
+      return;
+    }
+
+    if (categoria === "Enviar pedido") {
+      if (pedido.length === 0) {
+        addMessage("No has agregado nada a tu pedido. 😕");
+        mostrarMenu();
+        return;
+      }
+      mostrarResumenFinal();
+      return;
+    }
+
+    const catKey = categoria.toLowerCase().includes('cerveza') ? 'cervezas' :
+                   categoria.toLowerCase().includes('marisco') ? 'mariscos' :
+                   categoria.toLowerCase().includes('pollo') ? 'pollo' :
+                   categoria.toLowerCase().includes('extra') ? 'extras' :
+                   categoria.toLowerCase().includes('bebida') ? 'bebidas' : 'asados';
+
+    const items = menu[catKey] || [];
+    if (items.length === 0) {
+      addMessage("Lo siento, no hay ítems en esta categoría.");
+      mostrarMenu();
+      return;
+    }
+
+    const nombres = items.map(i => i.nombre);
+    addMessage(`Selecciona un ítem de ${categoria}:`);
+    addOptions(nombres, (nombre) => {
+      const item = items.find(i => i.nombre === nombre);
+      if (item) {
+        pedido.push(item);
+        addMessage(`✅ Agregado: ${nombre} - C$${item.precio}`, 'user');
+      }
+      mostrarMenu();
+    });
+  }
+
+  function mostrarResumen() {
+    if (pedido.length === 0) {
+      addMessage("Tu pedido está vacío. 😢");
+      return;
+    }
+
+    let total = 0;
+    let maxTiempo = 0;
+    let resumen = "Tu pedido:\n";
+    pedido.forEach(item => {
+      resumen += `• ${item.nombre} - C$${item.precio}\n`;
+      total += item.precio;
+      if (item.tiempo > maxTiempo) maxTiempo = item.tiempo;
+    });
+    resumen += `\n🕒 Tiempo estimado: ${maxTiempo} minutos\n💰 Total: C$${total}`;
+    addMessage(resumen);
+  }
+
+  function mostrarResumenFinal() {
+    let total = 0;
+    let maxTiempo = 0;
+    let resumen = `👤 *Nombre:* ${nombreCliente}\n`;
+    resumen += `📦 *Tipo:* ${tipoPedido.charAt(0).toUpperCase() + tipoPedido.slice(1)}\n`;
+    if (tipoPedido === 'delivery') {
+      resumen += `📍 *Dirección:* ${direccion}\n`;
+    }
+    resumen += `\n📋 *Pedido:*\n`;
+    pedido.forEach(item => {
+      resumen += `• ${item.nombre} - C$${item.precio}\n`;
+      total += item.precio;
+      if (item.tiempo > maxTiempo) maxTiempo = item.tiempo;
+    });
+    resumen += `\n💰 *Total estimado:* C$${total}\n`;
+    resumen += `🕒 *Tiempo estimado:* ${maxTiempo} minutos\n\n`;
+    resumen += `¿Enviar este pedido?`;
+
+    addMessage(resumen);
+    
+    const chat = document.getElementById('chat-messages');
+    const btn = document.createElement('button');
+    btn.classList.add('confirm-btn');
+    btn.textContent = "✅ Sí, enviar pedido";
+    chat.appendChild(btn);
+  }
+
+  function enviarPedido() {
+    let total = 0;
+    let maxTiempo = 0;
+    pedido.forEach(item => {
+      total += item.precio;
+      if (item.tiempo > maxTiempo) maxTiempo = item.tiempo;
+    });
+
+    let mensaje = `Hola, quiero hacer un pedido:\n`;
+    mensaje += `Nombre: ${nombreCliente}\n`;
+    mensaje += `Tipo: ${tipoPedido}\n`;
+    if (tipoPedido === 'delivery') {
+      mensaje += `Dirección: ${direccion}\n`;
+    }
+    mensaje += `\nPedido:\n`;
+    pedido.forEach(item => {
+      mensaje += `• ${item.nombre} - C$${item.precio}\n`;
+    });
+    mensaje += `\nTotal estimado: C$${total}\n`;
+    mensaje += `Tiempo estimado: ${maxTiempo} minutos\n`;
+    mensaje += `¡Gracias!`;
+
+    const url = `https://wa.me/50584751878?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
+
+    addMessage("¡Pedido enviado! 🎉\nTe contactaremos pronto por WhatsApp.");
+    addMessage("¿Quieres hacer otro pedido?");
+    addOptions(["Sí", "No"], (r) => {
+      if (r === "Sí") reiniciarPedido();
+      else addMessage("¡Gracias por tu preferencia! 🙌");
+    });
+  }
+
+  // Simular entrada de texto (para nombre y dirección)
+  // Reemplazamos los inputs por un prompt simple con botones + posibilidad de escribir
+  // Pero para mantenerlo 100% en botones, usaremos un truco: al hacer clic en "Dirección", se abre un prompt
+  // Alternativamente, podríamos usar un input, pero para simplicidad en móviles, usamos prompt.
+
+  // Sobreescribimos el flujo de dirección para usar prompt
+  document.getElementById('chat-messages').addEventListener('DOMNodeInserted', function(e) {
+    // No necesario; mejor modificar el flujo
+  });
+
+  // Modificamos el flujo de dirección para usar prompt
+  // Reemplazamos la parte de dirección en manejarCategoria
+  // Pero ya lo manejamos arriba con handleInput → lo activamos con un truco
+
+  // Solución: cuando se pide dirección, usamos prompt
+  let originalAddOptions = addOptions;
+  // No, mejor: modificamos el flujo directamente
+
+  // Reescribimos el flujo de dirección
+  // Ya está manejado: cuando estado = 'direccion', esperamos input
+  // Pero como no hay input, usamos prompt
+
+  // Vamos a modificar el flujo: cuando se pide dirección, usamos window.prompt
+  // Reemplazamos en la función donde se pide dirección
+
+  // Actualización: en lugar de esperar input, usamos prompt
+  // Modificamos la parte de "Delivery"
+
+  // Ya está implementado en el flujo inicial, pero para evitar complicaciones,
+  // vamos a ajustar el inicio para usar prompt en nombre y dirección
+
+  // ✅ Solución final: usamos window.prompt para nombre y dirección (funciona bien en móviles)
+  function iniciarChatConPrompt() {
+    nombreCliente = prompt("¡Hola! 👋 ¿Cómo te llamas?");
+    if (!nombreCliente || nombreCliente.trim() === '') {
+      alert("Por favor, ingresa tu nombre para continuar.");
+      return iniciarChatConPrompt();
+    }
+    nombreCliente = nombreCliente.trim();
+
+    const tipo = prompt(`Hola, ${nombreCliente}!\n¿Tu pedido es para llevar o delivery? (Escribe 'para llevar' o 'delivery')`);
+    if (!tipo || !['para llevar', 'delivery'].includes(tipo.toLowerCase().trim())) {
+      alert("Por favor, escribe 'para llevar' o 'delivery'.");
+      return iniciarChatConPrompt();
+    }
+    tipoPedido = tipo.toLowerCase().trim();
+
+    if (tipoPedido === 'delivery') {
+      direccion = prompt("Por favor, indícanos tu dirección de entrega:");
+      if (!direccion || direccion.trim() === '') {
+        alert("La dirección es requerida para delivery.");
+        return iniciarChatConPrompt();
+      }
+      direccion = direccion.trim();
+    }
+
+    // Mostrar chat con resumen inicial
+    document.getElementById('chat-messages').innerHTML = '';
+    addMessage(`¡Hola, ${nombreCliente}!`);
+    addMessage(`Pedido: ${tipoPedido}${tipoPedido === 'delivery' ? ` a ${direccion}` : ''}`);
+    estado = 'menu';
+    mostrarMenu();
+    addResetButton();
+  }
+
+  // Iniciar con prompt
+  window.onload = () => {
+    iniciarChatConPrompt();
+  };
+</script>
+
+</body>
+</html>
