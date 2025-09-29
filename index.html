@@ -89,7 +89,7 @@
       background-color: #054a42;
     }
 
-    .whatsapp-btn, .reset-btn, .confirm-btn {
+    .action-btn {
       width: 90%;
       padding: 12px;
       border: none;
@@ -104,10 +104,34 @@
     .whatsapp-btn { background-color: #25D366; color: white; }
     .reset-btn { background-color: #ff6b6b; color: white; }
     .confirm-btn { background-color: #3498db; color: white; }
+    .edit-btn { background-color: #9b59b6; color: white; }
 
     .whatsapp-btn:hover { background-color: #128C7E; }
     .reset-btn:hover { background-color: #ff5252; }
     .confirm-btn:hover { background-color: #2980b9; }
+    .edit-btn:hover { background-color: #8e44ad; }
+
+    .pedido-item {
+      background-color: #f9f9f9;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .eliminar-btn {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -118,7 +142,7 @@
 </div>
 
 <script>
-  // Menú con tiempos ajustados: 35-45 min para platos principales
+  // Menú con tiempos de 35-45 min para platos principales
   const menu = {
     asados: [
       { nombre: "Costilla de cerdo", precio: 300, tiempo: 40 },
@@ -175,11 +199,11 @@
     ]
   };
 
-  let estado = 'inicio'; // inicio, nombre, tipo, direccion, menu, confirmacion
   let pedido = [];
   let nombreCliente = '';
-  let tipoPedido = ''; // 'para llevar' o 'delivery'
+  let tipoPedido = '';
   let direccion = '';
+  let instrucciones = '';
 
   function addMessage(text, sender = 'bot') {
     const chat = document.getElementById('chat-messages');
@@ -218,68 +242,38 @@
   }
 
   function reiniciarPedido() {
-    estado = 'inicio';
     pedido = [];
     nombreCliente = '';
     tipoPedido = '';
     direccion = '';
+    instrucciones = '';
     document.getElementById('chat-messages').innerHTML = '';
-    iniciarChat();
+    iniciarFlujo();
   }
 
-  function iniciarChat() {
-    addMessage("¡Hola! 👋 Bienvenido a nuestro asistente de pedidos.");
-    addMessage("¿Cómo te llamas?");
-    estado = 'nombre';
+  function iniciarFlujo() {
+    nombreCliente = prompt("¡Hola! 👋 ¿Cómo te llamas?");
+    if (!nombreCliente || !nombreCliente.trim()) return iniciarFlujo();
+    nombreCliente = nombreCliente.trim();
+
+    const tipo = prompt(`Hola, ${nombreCliente}!\n¿Tu pedido es para llevar o delivery? (Escribe 'para llevar' o 'delivery')`);
+    if (!tipo || !['para llevar', 'delivery'].includes(tipo.toLowerCase().trim())) return iniciarFlujo();
+    tipoPedido = tipo.toLowerCase().trim();
+
+    if (tipoPedido === 'delivery') {
+      direccion = prompt("Por favor, indícanos tu dirección de entrega:");
+      if (!direccion || !direccion.trim()) return iniciarFlujo();
+      direccion = direccion.trim();
+    }
+
+    mostrarMenu();
     addResetButton();
-  }
-
-  // Manejo de eventos
-  document.getElementById('chat-messages').addEventListener('click', (e) => {
-    if (e.target.tagName === 'BUTTON' && e.target.classList.contains('confirm-btn')) {
-      enviarPedido();
-    }
-  });
-
-  // Escuchar entradas (aunque usamos botones, podríamos extender a input si se desea)
-  // Por ahora, todo por botones para simplicidad móvil.
-
-  function handleInput(input) {
-    if (estado === 'nombre') {
-      nombreCliente = input.trim();
-      if (!nombreCliente) {
-        addMessage("Por favor, dime tu nombre.");
-        return;
-      }
-      addMessage(`¡Hola, ${nombreCliente}! 👋`, 'user');
-      addMessage("¿Tu pedido es para llevar o delivery?");
-      addOptions(["Para llevar", "Delivery"], (tipo) => {
-        tipoPedido = tipo.toLowerCase();
-        addMessage(tipo, 'user');
-        if (tipoPedido === 'delivery') {
-          addMessage("Por favor, indícanos tu dirección de entrega:");
-          estado = 'direccion';
-        } else {
-          estado = 'menu';
-          mostrarMenu();
-        }
-      });
-    } else if (estado === 'direccion') {
-      direccion = input.trim();
-      if (!direccion) {
-        addMessage("Por favor, escribe tu dirección.");
-        return;
-      }
-      addMessage(direccion, 'user');
-      estado = 'menu';
-      mostrarMenu();
-    }
   }
 
   function mostrarMenu() {
     addMessage("¿Qué te gustaría pedir?");
     addOptions(
-      ["Asados", "Mariscos", "Pollo", "Extras", "Bebidas", "Cervezas/Licores", "Ver pedido", "Enviar pedido"],
+      ["Asados", "Mariscos", "Pollo", "Extras", "Bebidas", "Cervezas/Licores", "Ver/Editar pedido", "Enviar pedido"],
       manejarCategoria
     );
   }
@@ -287,9 +281,8 @@
   function manejarCategoria(categoria) {
     addMessage(categoria, 'user');
 
-    if (categoria === "Ver pedido") {
-      mostrarResumen();
-      mostrarMenu();
+    if (categoria === "Ver/Editar pedido") {
+      mostrarPedidoEditable();
       return;
     }
 
@@ -299,7 +292,7 @@
         mostrarMenu();
         return;
       }
-      mostrarResumenFinal();
+      solicitarInstrucciones();
       return;
     }
 
@@ -328,37 +321,75 @@
     });
   }
 
-  function mostrarResumen() {
+  function mostrarPedidoEditable() {
     if (pedido.length === 0) {
       addMessage("Tu pedido está vacío. 😢");
+      mostrarMenu();
       return;
     }
 
-    let total = 0;
-    let maxTiempo = 0;
-    let resumen = "Tu pedido:\n";
-    pedido.forEach(item => {
-      resumen += `• ${item.nombre} - C$${item.precio}\n`;
-      total += item.precio;
-      if (item.tiempo > maxTiempo) maxTiempo = item.tiempo;
+    const chat = document.getElementById('chat-messages');
+    const resumenDiv = document.createElement('div');
+    resumenDiv.innerHTML = "<strong>Tu pedido:</strong>";
+    
+    pedido.forEach((item, index) => {
+      const itemDiv = document.createElement('div');
+      itemDiv.classList.add('pedido-item');
+      itemDiv.innerHTML = `
+        ${item.nombre} - C$${item.precio}
+        <button class="eliminar-btn" data-index="${index}">🗑️</button>
+      `;
+      resumenDiv.appendChild(itemDiv);
     });
-    resumen += `\n🕒 Tiempo estimado: ${maxTiempo} minutos\n💰 Total: C$${total}`;
-    addMessage(resumen);
+
+    // Calcular total y tiempo
+    let total = pedido.reduce((sum, item) => sum + item.precio, 0);
+    let maxTiempo = Math.max(...pedido.map(item => item.tiempo));
+    resumenDiv.innerHTML += `<div style="margin-top:10px;"><strong>💰 Total: C$${total}</strong><br><strong>🕒 Tiempo: ${maxTiempo} min</strong></div>`;
+
+    chat.appendChild(resumenDiv);
+
+    // Añadir evento a botones de eliminar
+    document.querySelectorAll('.eliminar-btn').forEach(btn => {
+      btn.onclick = () => {
+        const index = parseInt(btn.getAttribute('data-index'));
+        pedido.splice(index, 1);
+        chat.removeChild(resumenDiv);
+        addMessage("Ítem eliminado. ✅");
+        mostrarMenu();
+      };
+    });
+
+    addOptions(["Seguir pidiendo", "Enviar pedido"], (opt) => {
+      if (opt === "Enviar pedido") {
+        if (pedido.length === 0) {
+          addMessage("No hay ítems en tu pedido.");
+          mostrarMenu();
+        } else {
+          solicitarInstrucciones();
+        }
+      } else {
+        mostrarMenu();
+      }
+    });
+  }
+
+  function solicitarInstrucciones() {
+    instrucciones = prompt("¿Alguna instrucción especial? (Ej: 'sin picante', 'dejar en portón', 'bien cocido')\nDeja en blanco si no aplica:") || "";
+    mostrarResumenFinal();
   }
 
   function mostrarResumenFinal() {
-    let total = 0;
-    let maxTiempo = 0;
+    let total = pedido.reduce((sum, item) => sum + item.precio, 0);
+    let maxTiempo = Math.max(...pedido.map(item => item.tiempo));
+
     let resumen = `👤 *Nombre:* ${nombreCliente}\n`;
     resumen += `📦 *Tipo:* ${tipoPedido.charAt(0).toUpperCase() + tipoPedido.slice(1)}\n`;
-    if (tipoPedido === 'delivery') {
-      resumen += `📍 *Dirección:* ${direccion}\n`;
-    }
+    if (tipoPedido === 'delivery') resumen += `📍 *Dirección:* ${direccion}\n`;
+    if (instrucciones) resumen += `📝 *Instrucciones:* ${instrucciones}\n`;
     resumen += `\n📋 *Pedido:*\n`;
     pedido.forEach(item => {
       resumen += `• ${item.nombre} - C$${item.precio}\n`;
-      total += item.precio;
-      if (item.tiempo > maxTiempo) maxTiempo = item.tiempo;
     });
     resumen += `\n💰 *Total estimado:* C$${total}\n`;
     resumen += `🕒 *Tiempo estimado:* ${maxTiempo} minutos\n\n`;
@@ -370,23 +401,19 @@
     const btn = document.createElement('button');
     btn.classList.add('confirm-btn');
     btn.textContent = "✅ Sí, enviar pedido";
+    btn.onclick = enviarPedido;
     chat.appendChild(btn);
   }
 
   function enviarPedido() {
-    let total = 0;
-    let maxTiempo = 0;
-    pedido.forEach(item => {
-      total += item.precio;
-      if (item.tiempo > maxTiempo) maxTiempo = item.tiempo;
-    });
+    let total = pedido.reduce((sum, item) => sum + item.precio, 0);
+    let maxTiempo = Math.max(...pedido.map(item => item.tiempo));
 
     let mensaje = `Hola, quiero hacer un pedido:\n`;
     mensaje += `Nombre: ${nombreCliente}\n`;
     mensaje += `Tipo: ${tipoPedido}\n`;
-    if (tipoPedido === 'delivery') {
-      mensaje += `Dirección: ${direccion}\n`;
-    }
+    if (tipoPedido === 'delivery') mensaje += `Dirección: ${direccion}\n`;
+    if (instrucciones) mensaje += `Instrucciones: ${instrucciones}\n`;
     mensaje += `\nPedido:\n`;
     pedido.forEach(item => {
       mensaje += `• ${item.nombre} - C$${item.precio}\n`;
@@ -406,74 +433,8 @@
     });
   }
 
-  // Simular entrada de texto (para nombre y dirección)
-  // Reemplazamos los inputs por un prompt simple con botones + posibilidad de escribir
-  // Pero para mantenerlo 100% en botones, usaremos un truco: al hacer clic en "Dirección", se abre un prompt
-  // Alternativamente, podríamos usar un input, pero para simplicidad en móviles, usamos prompt.
-
-  // Sobreescribimos el flujo de dirección para usar prompt
-  document.getElementById('chat-messages').addEventListener('DOMNodeInserted', function(e) {
-    // No necesario; mejor modificar el flujo
-  });
-
-  // Modificamos el flujo de dirección para usar prompt
-  // Reemplazamos la parte de dirección en manejarCategoria
-  // Pero ya lo manejamos arriba con handleInput → lo activamos con un truco
-
-  // Solución: cuando se pide dirección, usamos prompt
-  let originalAddOptions = addOptions;
-  // No, mejor: modificamos el flujo directamente
-
-  // Reescribimos el flujo de dirección
-  // Ya está manejado: cuando estado = 'direccion', esperamos input
-  // Pero como no hay input, usamos prompt
-
-  // Vamos a modificar el flujo: cuando se pide dirección, usamos window.prompt
-  // Reemplazamos en la función donde se pide dirección
-
-  // Actualización: en lugar de esperar input, usamos prompt
-  // Modificamos la parte de "Delivery"
-
-  // Ya está implementado en el flujo inicial, pero para evitar complicaciones,
-  // vamos a ajustar el inicio para usar prompt en nombre y dirección
-
-  // ✅ Solución final: usamos window.prompt para nombre y dirección (funciona bien en móviles)
-  function iniciarChatConPrompt() {
-    nombreCliente = prompt("¡Hola! 👋 ¿Cómo te llamas?");
-    if (!nombreCliente || nombreCliente.trim() === '') {
-      alert("Por favor, ingresa tu nombre para continuar.");
-      return iniciarChatConPrompt();
-    }
-    nombreCliente = nombreCliente.trim();
-
-    const tipo = prompt(`Hola, ${nombreCliente}!\n¿Tu pedido es para llevar o delivery? (Escribe 'para llevar' o 'delivery')`);
-    if (!tipo || !['para llevar', 'delivery'].includes(tipo.toLowerCase().trim())) {
-      alert("Por favor, escribe 'para llevar' o 'delivery'.");
-      return iniciarChatConPrompt();
-    }
-    tipoPedido = tipo.toLowerCase().trim();
-
-    if (tipoPedido === 'delivery') {
-      direccion = prompt("Por favor, indícanos tu dirección de entrega:");
-      if (!direccion || direccion.trim() === '') {
-        alert("La dirección es requerida para delivery.");
-        return iniciarChatConPrompt();
-      }
-      direccion = direccion.trim();
-    }
-
-    // Mostrar chat con resumen inicial
-    document.getElementById('chat-messages').innerHTML = '';
-    addMessage(`¡Hola, ${nombreCliente}!`);
-    addMessage(`Pedido: ${tipoPedido}${tipoPedido === 'delivery' ? ` a ${direccion}` : ''}`);
-    estado = 'menu';
-    mostrarMenu();
-    addResetButton();
-  }
-
-  // Iniciar con prompt
   window.onload = () => {
-    iniciarChatConPrompt();
+    iniciarFlujo();
   };
 </script>
 
