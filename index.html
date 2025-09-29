@@ -142,7 +142,7 @@
 </div>
 
 <script>
-  // Menú con tiempos de 35-45 min para platos principales
+  // Menú SIN LICORES – solo comida y bebidas sin alcohol
   const menu = {
     asados: [
       { nombre: "Costilla de cerdo", precio: 300, tiempo: 40 },
@@ -178,24 +178,6 @@
       { nombre: "Té de limón", precio: 40, tiempo: 3 },
       { nombre: "Jugo de naranja", precio: 40, tiempo: 3 },
       { nombre: "Agua embotellada", precio: 40, tiempo: 1 }
-    ],
-    cervezas: [
-      { nombre: "Toña", precio: 40, tiempo: 1 },
-      { nombre: "Toña Light", precio: 45, tiempo: 1 },
-      { nombre: "Victoria Clásica", precio: 50, tiempo: 1 },
-      { nombre: "Victoria Frost", precio: 55, tiempo: 1 },
-      { nombre: "Sol", precio: 45, tiempo: 1 },
-      { nombre: "Heineken", precio: 60, tiempo: 1 },
-      { nombre: "Bamboo", precio: 55, tiempo: 1 },
-      { nombre: "Adán y Eva", precio: 65, tiempo: 1 },
-      { nombre: "Bliss", precio: 70, tiempo: 1 },
-      { nombre: "Hard Seltzer Spark", precio: 75, tiempo: 1 },
-      { nombre: "Smirnoff", precio: 80, tiempo: 2 },
-      { nombre: "Ron nacional Flor de Caña (1/2 botella)", precio: 180, tiempo: 2 },
-      { nombre: "Ron nacional Flor de Caña (1/4 botella)", precio: 100, tiempo: 2 },
-      { nombre: "Tequila José Cuervo Especial", precio: 90, tiempo: 2 },
-      { nombre: "Whisky Johnnie Walker Red", precio: 100, tiempo: 2 },
-      { nombre: "Whisky Johnnie Walker Black", precio: 120, tiempo: 2 }
     ]
   };
 
@@ -272,8 +254,9 @@
 
   function mostrarMenu() {
     addMessage("¿Qué te gustaría pedir?");
+    // ⚠️ Se eliminó "Cervezas/Licores" de las opciones
     addOptions(
-      ["Asados", "Mariscos", "Pollo", "Extras", "Bebidas", "Cervezas/Licores", "Ver/Editar pedido", "Enviar pedido"],
+      ["Asados", "Mariscos", "Pollo", "Extras", "Bebidas", "Ver/Editar pedido", "Enviar pedido"],
       manejarCategoria
     );
   }
@@ -296,19 +279,21 @@
       return;
     }
 
-    const catKey = categoria.toLowerCase().includes('cerveza') ? 'cervezas' :
-                   categoria.toLowerCase().includes('marisco') ? 'mariscos' :
-                   categoria.toLowerCase().includes('pollo') ? 'pollo' :
-                   categoria.toLowerCase().includes('extra') ? 'extras' :
-                   categoria.toLowerCase().includes('bebida') ? 'bebidas' : 'asados';
+    // Mapeo de categorías (sin cervezas/licores)
+    const catKey = 
+      categoria === "Asados" ? 'asados' :
+      categoria === "Mariscos" ? 'mariscos' :
+      categoria === "Pollo" ? 'pollo' :
+      categoria === "Extras" ? 'extras' :
+      categoria === "Bebidas" ? 'bebidas' : null;
 
-    const items = menu[catKey] || [];
-    if (items.length === 0) {
-      addMessage("Lo siento, no hay ítems en esta categoría.");
+    if (!catKey || !menu[catKey]) {
+      addMessage("Categoría no válida.");
       mostrarMenu();
       return;
     }
 
+    const items = menu[catKey];
     const nombres = items.map(i => i.nombre);
     addMessage(`Selecciona un ítem de ${categoria}:`);
     addOptions(nombres, (nombre) => {
@@ -342,14 +327,12 @@
       resumenDiv.appendChild(itemDiv);
     });
 
-    // Calcular total y tiempo
     let total = pedido.reduce((sum, item) => sum + item.precio, 0);
     let maxTiempo = Math.max(...pedido.map(item => item.tiempo));
     resumenDiv.innerHTML += `<div style="margin-top:10px;"><strong>💰 Total: C$${total}</strong><br><strong>🕒 Tiempo: ${maxTiempo} min</strong></div>`;
 
     chat.appendChild(resumenDiv);
 
-    // Añadir evento a botones de eliminar
     document.querySelectorAll('.eliminar-btn').forEach(btn => {
       btn.onclick = () => {
         const index = parseInt(btn.getAttribute('data-index'));
@@ -375,7 +358,7 @@
   }
 
   function solicitarInstrucciones() {
-    instrucciones = prompt("¿Alguna instrucción especial? (Ej: 'sin picante', 'dejar en portón', 'bien cocido')\nDeja en blanco si no aplica:") || "";
+    instrucciones = prompt("¿Alguna instrucción especial? (Ej: 'sin picante', 'dejar en portón')\nDeja en blanco si no aplica:") || "";
     mostrarResumenFinal();
   }
 
